@@ -9,38 +9,42 @@ locals {
   firewall_prefix   = ["10.3.2.0/24"]
 }
 
+resource "azurerm_resource_group" "main" {
+  name 	   = local.resource_group
+  location = local.location
+
 resource "azurerm_virtual_network" "vnet" {
   name                = "test-vnet"
   address_space       = local.address_space
   location            = local.location
-  resource_group_name = local.resource_group
+  resource_group_name = azurerm_resource_group.main.name
 }
 
 #subnets
 resource "azurerm_subnet" "aks" {
   name                 = "snet-${local.name_prefix}-${local.environment}"
-  resource_group_name  = local.resource_group
+  resource_group_name  = azurerm_resource_group.main.name
   address_prefixes     = local.aks_node_prefix
   virtual_network_name = azurerm_virtual_network.vnet.name
 }
 
 resource "azurerm_subnet" "firewall" {
   name                 = "AzureFirewallSubnet"
-  resource_group_name  = local.resource_group
+  resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = local.firewall_prefix
 }
 
 # #user assigned identity
 # resource "azurerm_user_assigned_identity" "base" {
-#   resource_group_name = local.resource_group
+#   resource_group_name = azurerm_resource_group.main.name
 #   location            = local.location
 #   name                = "mi-${local.name_prefix}-${local.environment}"
 # }
 
 # #role assignment
 # resource "azurerm_role_assignment" "base" {
-#   scope                = "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourceGroups/AKS-test"
+#   scope                = azurerm_resource_group.main.id
 #   role_definition_name = "Network Contributor"
 #   principal_id         = azurerm_user_assigned_identity.base.principal_id
 # }
@@ -49,13 +53,13 @@ resource "azurerm_subnet" "firewall" {
 resource "azurerm_route_table" "base" {
   name                = "rt-${local.name_prefix}-${local.environment}"
   location            = azurerm_virtual_network.vnet.location
-  resource_group_name = local.resource_group
+  resource_group_name = azurerm_resource_group.main.name
 }
 
 #route
 resource "azurerm_route" "base" {
   name                   = "dg-${local.environment}"
-  resource_group_name    = local.resource_group
+  resource_group_name    = azurerm_resource_group.main.name
   route_table_name       = azurerm_route_table.base.name
   address_prefix         = "0.0.0.0/0"
   next_hop_type          = "VirtualAppliance"
@@ -72,7 +76,7 @@ resource "azurerm_subnet_route_table_association" "base" {
 resource "azurerm_public_ip" "base" {
   name                = "pip-firewall"
   location            = azurerm_virtual_network.vnet.location
-  resource_group_name = local.resource_group
+  resource_group_name = azurerm_resource_group.main.name
   allocation_method   = "Static"
   sku                 = "Standard"
 }
@@ -80,7 +84,7 @@ resource "azurerm_public_ip" "base" {
 resource "azurerm_firewall" "base" {
   name                = "fw-${local.name_prefix}-${local.environment}"
   location            = azurerm_virtual_network.vnet.location
-  resource_group_name = local.resource_group
+  resource_group_name = azurerm_resource_group.main.name
   sku_name            = "AZFW_VNet"
   sku_tier            = "Standard"
 
@@ -95,7 +99,7 @@ resource "azurerm_firewall" "base" {
 resource "azurerm_kubernetes_cluster" "base" {
   name                    = "${local.name_prefix}-${local.environment}"
   location                = local.location
-  resource_group_name     = local.resource_group
+  resource_group_name     = azurerm_resource_group.main.name
   dns_prefix              = "dns-${local.name_prefix}-${local.environment}"
   private_cluster_enabled = true
 
@@ -112,8 +116,8 @@ resource "azurerm_kubernetes_cluster" "base" {
   }
 
   service_principal {
-    client_id     = "xxx"
-    client_secret = "xxx"
+    client_id     = "35494f29-e6f3-42a4-a44a-47836e370c69"
+    client_secret = "tvJ8Q~EGy3oCLXbkJOPZwBwQoU3N5Nn2TcOllao2"
   }
 
   # identity {
